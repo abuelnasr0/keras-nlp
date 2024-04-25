@@ -131,6 +131,7 @@ from keras_nlp.models.opt.opt_causal_lm_preprocessor import (
 )
 from keras_nlp.models.opt.opt_preprocessor import OPTPreprocessor
 from keras_nlp.models.opt.opt_tokenizer import OPTTokenizer
+from keras_nlp.models.phi3.phi3_backbone import Phi3Backbone
 from keras_nlp.models.preprocessor import Preprocessor
 from keras_nlp.models.roberta.roberta_backbone import RobertaBackbone
 from keras_nlp.models.roberta.roberta_classifier import RobertaClassifier
