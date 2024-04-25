@@ -38,8 +38,8 @@ class Phi3LayerNorm(keras.layers.Layer):
 
     def call(self, x):
         x = ops.cast(x, "float32")
-        rms = ops.sqrt(ops.mean(ops.square(x), axis=-1, keepdims=True))
-        x = x / (rms + self.epsilon)
+        rms = ops.rsqrt(ops.mean(ops.square(x), axis=-1, keepdims=True))
+        x = x * (rms + self.epsilon)
         return ops.cast(x, self.compute_dtype) * self.scale
 
     def get_config(self):
