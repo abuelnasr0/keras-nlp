@@ -54,40 +54,34 @@ class Phi3Attention(keras.layers.Layer):
         # u = num query heads
         # v = num key/value heads
         # h = head dim
-        hidden_dim = inputs_shape[-1]
-        head_dim = hidden_dim // self.num_query_heads
-        self._norm_factor = ops.sqrt(ops.cast(head_dim, self.compute_dtype))
+        self.hidden_dim = inputs_shape[-1]
+        self.head_dim = self.hidden_dim // self.num_query_heads
+        self._norm_factor = ops.sqrt(
+            ops.cast(self.head_dim, self.compute_dtype)
+        )
 
-        self._query_dense = keras.layers.EinsumDense(
-            equation="bqm,muh->bquh",
-            output_shape=(None, self.num_query_heads, head_dim),
+        self._query_dense = keras.layers.Dense(
+            self.hidden_dim,
             kernel_initializer=self.kernel_initializer,
+            use_bias=False,
             dtype=self.dtype_policy,
             name="query",
         )
         self._query_dense.build(inputs_shape)
 
-        self._key_dense = keras.layers.EinsumDense(
-            equation="bkm,mvh->bkvh",
-            output_shape=(
-                None,
-                self.num_key_value_heads,
-                head_dim,
-            ),
+        self._key_dense = keras.layers.Dense(
+            self.head_dim * self.num_key_value_heads,
             kernel_initializer=self.kernel_initializer,
+            use_bias=False,
             dtype=self.dtype_policy,
             name="key",
         )
         self._key_dense.build(inputs_shape)
 
-        self._value_dense = keras.layers.EinsumDense(
-            equation="bkm,mvh->bkvh",
-            output_shape=(
-                None,
-                self.num_key_value_heads,
-                head_dim,
-            ),
+        self._value_dense = keras.layers.Dense(
+            self.head_dim * self.num_key_value_heads,
             kernel_initializer=self.kernel_initializer,
+            use_bias=False,
             dtype=self.dtype_policy,
             name="value",
         )
@@ -106,12 +100,12 @@ class Phi3Attention(keras.layers.Layer):
 
         self._output_dense = keras.layers.EinsumDense(
             equation="bquh,uhm->bqm",
-            output_shape=(None, hidden_dim),
+            output_shape=(None, self.hidden_dim),
             kernel_initializer=self.kernel_initializer,
             dtype=self.dtype_policy,
             name="attention_output",
         )
-        self._output_dense.build((None, None, self.num_query_heads, head_dim))
+        self._output_dense.build((None, None, self.num_query_heads, self.head_dim))
 
         if self.rope_scaling_type is None:
             self.rotary_embedding_layer = RotaryEmbedding(
@@ -138,7 +132,14 @@ class Phi3Attention(keras.layers.Layer):
         key = self._key_dense(hidden_states)
         value = self._value_dense(hidden_states)
 
-        # Compute RoPE for queries
+        b, s, _ = query.shape
+
+        query = ops.reshape(query, (b, s, self.num_query_heads, self.head_dim))
+        key = ops.reshape(key, (b, s, self.num_key_value_heads, self.head_dim))
+        value = ops.reshape(
+            value, (b, s, self.num_key_value_heads, self.head_dim)
+        )
+
         query = self.rotary_embedding_layer(query, start_index=start_index)
         key = self.rotary_embedding_layer(key, start_index=start_index)
 
